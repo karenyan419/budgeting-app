@@ -17,8 +17,14 @@ def parse_monzo_csv(file_content: str) -> list[dict]:
     """
     transactions = []
 
+    if not file_content.strip():
+        return transactions
+
     reader = csv.reader(StringIO(file_content))
-    header = next(reader)  # Skip header row
+    try:
+        header = next(reader)  # Skip header row
+    except StopIteration:
+        return transactions
 
     for row in reader:
         if len(row) < 8:
