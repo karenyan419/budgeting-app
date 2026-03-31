@@ -5,6 +5,7 @@ Personal budgeting app to track spending across Monzo (current account) and Yond
 ## Tech Stack
 
 - **Backend:** Python 3.9, FastAPI, SQLAlchemy, SQLite
+- **Frontend:** React 19 (Vite), Recharts
 - **Testing:** pytest + pytest-cov (96 tests, 97% coverage)
 
 ## Project Structure
@@ -29,17 +30,31 @@ backend/
 │   ├── categorizer.py   # Apply auto-categorization rules
 │   └── exclusion_rules.py # Check exclusions from database
 └── tests/               # 96 tests
+
+frontend/
+├── src/
+│   ├── App.jsx          # Main component with bar chart
+│   ├── App.css          # Styles
+│   └── main.jsx         # Entry point
+├── index.html
+└── package.json         # React, Recharts dependencies
 ```
 
 ## Commands
 
 ```bash
-# Run server
-cd backend && source venv/bin/activate
-uvicorn main:app --reload
+# Run backend
+cd backend && source venv/bin/activate && uvicorn main:app --reload
+
+# Run frontend
+cd frontend && npm run dev
+
+# Run both (in separate terminals)
+# Terminal 1: cd backend && source venv/bin/activate && uvicorn main:app --reload
+# Terminal 2: cd frontend && npm run dev
 
 # Run tests
-pytest
+cd backend && source venv/bin/activate && pytest
 
 # Run tests with coverage
 pytest --cov=. --cov-report=term-missing

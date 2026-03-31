@@ -32,3 +32,9 @@ Thumbs.db
 # Bank statements (personal data)
 *.csv
 *.pdf
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Node
+node_modules/

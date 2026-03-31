@@ -9,33 +9,42 @@ A personal budgeting app to track monthly expenses from Monzo and Yonder. Import
 - Auto-categorize transactions using pattern matching rules
 - Monthly spending reports with budget tracking
 - Duplicate detection on re-import
+- **React frontend** with bar chart visualization of monthly spending
 
 ## Setup
 
 ### Prerequisites
 
 - Python 3.9+
+- Node.js 18+
 
 ### Installation
 
 ```bash
+# Backend
 cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+
+# Frontend
+cd frontend
+npm install
 ```
 
-### Run the Server
+### Quick Start
 
 ```bash
-cd backend
-source venv/bin/activate
-uvicorn main:app --reload
+# Terminal 1 - Run backend
+cd backend && source venv/bin/activate && uvicorn main:app --reload
+
+# Terminal 2 - Run frontend
+cd frontend && npm run dev
 ```
 
-The API will be available at http://localhost:8000
-
-Interactive docs at http://localhost:8000/docs
+- **Backend API:** http://localhost:8000
+- **API Docs:** http://localhost:8000/docs
+- **Frontend:** http://localhost:5173
 
 ## Usage
 
