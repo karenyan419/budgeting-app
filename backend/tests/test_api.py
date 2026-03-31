@@ -270,6 +270,12 @@ tx_001,20/02/2026,10:30:00,Card payment,Tesco,,Groceries,-25.50,GBP"""
             "type": "current_account"
         })
 
+        # Create exclusion rule for Yonder payments
+        client.post("/exclusions/", json={
+            "description_pattern": "yonder",
+            "bank": "monzo"
+        })
+
         # Include a transaction that should be excluded (Yonder payment)
         csv_content = """Transaction ID,Date,Time,Type,Name,Emoji,Category,Amount,Currency
 tx_001,20/02/2026,10:30:00,Card payment,Yonder,,Bills,-100.00,GBP
@@ -330,6 +336,12 @@ tx_002,16/03/2026,11:00:00,Card payment,Asda,,Groceries,-30.00,GBP"""
             "name": "Monzo",
             "bank": "monzo",
             "type": "current_account"
+        })
+
+        # Create exclusion rule
+        client.post("/exclusions/", json={
+            "description_pattern": "yonder",
+            "bank": "monzo"
         })
 
         csv_content = """Transaction ID,Date,Time,Type,Name,Emoji,Category,Amount,Currency

@@ -123,3 +123,28 @@ class MonthlyReport(BaseModel):
     year: int
     total_spent: float
     categories: List[CategorySpending]
+
+
+# Exclusion rule schemas
+class ExclusionRuleCreate(BaseModel):
+    description_pattern: str
+    bank: Optional[BankType] = None
+    amount: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class ExclusionRuleUpdate(BaseModel):
+    description_pattern: Optional[str] = None
+    bank: Optional[BankType] = None
+    amount: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class ExclusionRule(BaseModel):
+    id: int
+    description_pattern: str
+    bank: Optional[BankType] = None
+    amount: Optional[float] = None
+    notes: Optional[str] = None
+
+    model_config = {"from_attributes": True}

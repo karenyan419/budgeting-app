@@ -5,7 +5,7 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 
 from database import get_db
-from models import Transaction, Category, Account, RecurringRule
+from models import Transaction, Category, Account, RecurringRule, ExclusionRule
 
 router = APIRouter()
 
@@ -107,7 +107,8 @@ def clear_database(db: Session = Depends(get_db)):
     """
     # Delete in order to respect foreign key constraints
     deleted_transactions = db.query(Transaction).delete()
-    deleted_rules = db.query(RecurringRule).delete()
+    deleted_recurring_rules = db.query(RecurringRule).delete()
+    deleted_exclusion_rules = db.query(ExclusionRule).delete()
     deleted_categories = db.query(Category).delete()
     deleted_accounts = db.query(Account).delete()
 
@@ -117,7 +118,8 @@ def clear_database(db: Session = Depends(get_db)):
         "message": "Database cleared",
         "deleted": {
             "transactions": deleted_transactions,
-            "recurring_rules": deleted_rules,
+            "recurring_rules": deleted_recurring_rules,
+            "exclusion_rules": deleted_exclusion_rules,
             "categories": deleted_categories,
             "accounts": deleted_accounts,
         }

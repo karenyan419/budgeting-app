@@ -47,7 +47,7 @@ async def upload_statement(
 
     for tx_data in transactions:
         # Check if transaction should be excluded from reports
-        is_excluded = should_exclude(tx_data, account.bank.value)
+        is_excluded = should_exclude(tx_data, account.bank.value, db)
         if is_excluded:
             excluded_count += 1
 

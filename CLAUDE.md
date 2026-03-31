@@ -4,64 +4,97 @@ Personal budgeting app to track spending across Monzo (current account) and Yond
 
 ## Tech Stack
 
-- **Backend:** Python, FastAPI, SQLAlchemy, SQLite
-- **Frontend:** React (not yet built)
-- **PDF Parsing:** pdfplumber
+- **Backend:** Python 3.9, FastAPI, SQLAlchemy, SQLite
+- **Testing:** pytest + pytest-cov (96 tests, 97% coverage)
 
 ## Project Structure
 
 ```
 backend/
 ├── main.py              # FastAPI entry point
-├── database.py          # SQLite connection
-├── models.py            # SQLAlchemy models (Account, Category, Transaction, RecurringRule)
+├── database.py          # SQLite connection (budgeting.db)
+├── models.py            # SQLAlchemy models
 ├── schemas.py           # Pydantic schemas
-├── routers/             # API endpoints
-│   ├── accounts.py
-│   ├── categories.py
-│   ├── transactions.py  # Includes file upload
-│   ├── reports.py
-│   └── recurring_rules.py
-└── services/
-    ├── monzo_parser.py  # Parse Monzo CSV exports
-    ├── yonder_parser.py # Parse Yonder PDF statements
-    └── categorizer.py   # Apply auto-categorization rules
+├── routers/
+│   ├── accounts.py      # Bank account CRUD
+│   ├── categories.py    # Spending category CRUD
+│   ├── transactions.py  # Upload CSVs, list/update transactions
+│   ├── recurring_rules.py # Auto-categorization rules
+│   ├── exclusion_rules.py # Exclusion rules CRUD
+│   ├── reports.py       # Monthly reports & trends
+│   └── admin.py         # Clear DB, data coverage
+├── services/
+│   ├── monzo_parser.py  # Parse Monzo CSV
+│   ├── yonder_parser.py # Parse Yonder CSV
+│   ├── categorizer.py   # Apply auto-categorization rules
+│   └── exclusion_rules.py # Check exclusions from database
+└── tests/               # 96 tests
 ```
 
-## Running the Backend
+## Commands
 
 ```bash
-cd backend
-source venv/bin/activate
+# Run server
+cd backend && source venv/bin/activate
 uvicorn main:app --reload
-```
 
-API docs at http://localhost:8000/docs
+# Run tests
+pytest
+
+# Run tests with coverage
+pytest --cov=. --cov-report=term-missing
+
+# Query database
+sqlite3 budgeting.db
+```
 
 ## Key Concepts
 
-- **Accounts:** Monzo (CSV import) or Yonder (PDF import)
-- **Categories:** User-defined spending categories with optional monthly budgets
-- **Transactions:** Imported from bank statements, linked to accounts and categories
-- **Recurring Rules:** Pattern matching on descriptions to auto-categorize transactions
+### Transaction Flow
+1. Upload CSV → Parser extracts transactions
+2. Exclusion rules (from DB) mark internal transfers (`excluded=True`)
+3. Hash generated for duplicate detection (SHA256, 16 chars)
+4. RecurringRules auto-categorize by description pattern
 
-## Bank Statement Formats
+### Exclusion Rules (Database-driven)
+Managed via `/exclusions/` API. Each rule has:
+- `description_pattern` - text to match (case-insensitive)
+- `bank` - optional, limit to specific bank (monzo/yonder)
+- `amount` - optional, match specific amount only
+- `notes` - description of why excluded
 
-### Monzo CSV
-- Columns: Date (1), Name (4), Category (6), Amount (7)
-- Includes Monzo's own categories in `source_category`
+### Bank Statement Formats
 
-### Yonder PDF
-- 3-column table: Date, Description, Amount
-- No categories provided - needs manual or rule-based categorization
+**Monzo CSV:**
+```
+Transaction ID,Date,Time,Type,Name,Emoji,Category,Amount,Currency
+```
+
+**Yonder CSV:**
+```
+Date/Time of transaction,Description,Amount (GBP),Amount (in Charged Currency),Currency,Category,Debit or Credit,Country
+```
 
 ## Database
 
-SQLite file at `backend/budget.db`. Key tables:
-- `accounts` - bank accounts
-- `categories` - spending categories with budgets
-- `transactions` - all transactions with hash for duplicate detection
-- `recurring_rules` - auto-categorization patterns
+SQLite file at `backend/budgeting.db`. Tables:
+- `accounts` - bank accounts (monzo/yonder)
+- `categories` - spending categories with monthly budgets
+- `transactions` - all transactions with `excluded` flag and `hash` for dedup
+- `recurring_rules` - pattern-matching auto-categorization
+- `exclusion_rules` - patterns to exclude from reports
+
+## API Endpoints
+
+| Prefix | Endpoints |
+|--------|-----------|
+| `/accounts` | CRUD for bank accounts |
+| `/categories` | CRUD for categories with budgets |
+| `/transactions` | `POST /upload/{id}`, list/filter/update |
+| `/rules` | Auto-categorization rules |
+| `/exclusions` | Exclusion rules CRUD |
+| `/reports` | `GET /monthly`, `GET /trends` |
+| `/admin` | `POST /clear-database`, `GET /data-coverage` |
 
 ## Python Version
 

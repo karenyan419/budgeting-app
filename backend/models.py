@@ -69,3 +69,13 @@ class RecurringRule(Base):
     mark_recurring = Column(Boolean, default=False)
 
     category = relationship("Category", back_populates="recurring_rules")
+
+
+class ExclusionRule(Base):
+    __tablename__ = "exclusion_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    description_pattern = Column(String, nullable=False)
+    bank = Column(Enum(BankType), nullable=True)  # None = any bank
+    amount = Column(Float, nullable=True)  # None = any amount
+    notes = Column(String, nullable=True)

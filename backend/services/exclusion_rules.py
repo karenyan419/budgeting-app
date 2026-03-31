@@ -1,61 +1,44 @@
 """
-Exclusion Rules for Reports
+Exclusion Rules Service
 
-These rules define transactions that should be excluded from spending reports
-to avoid double-counting or exclude personal transfers.
-
-Rules:
-- Payments from Monzo to Yonder (credit card bill payments)
-- Rent income from Chloe Tong (£500/month)
-- Direct debit to Kathy Yan (£300/month)
-- All transactions to/from Karen Yan or K Yan (self-transfers)
-- All InvestEngine transactions (investments)
+Checks transactions against exclusion rules stored in the database.
+Excluded transactions are marked but still stored - they just don't appear in reports.
 """
-
-# Patterns to exclude from spending reports
-# Format: (account_bank, description_pattern, amount_or_none)
-# - account_bank: 'monzo', 'yonder', or None to match any bank
-# - amount_or_none: specific amount to match, or None to match any amount
-EXCLUSION_PATTERNS = [
-    # Credit card bill payments (any amount)
-    ("monzo", "yonder", None),
-
-    # Personal transfers (specific amounts)
-    ("monzo", "chloe tong", 500.00),    # Rent income
-    ("monzo", "kathy yan", 300.00),      # Monthly direct debit
-
-    # Self-transfers (any amount)
-    (None, "karen yan", None),
-    (None, "k yan", None),
-
-    # Investments (any amount)
-    (None, "investengine", None),
-]
+from sqlalchemy.orm import Session
+from models import ExclusionRule
 
 
-def should_exclude(transaction, account_bank: str) -> bool:
+def should_exclude(transaction, account_bank: str, db: Session) -> bool:
     """
     Check if a transaction should be excluded from spending reports.
 
     Args:
-        transaction: Transaction object with 'description' and 'amount'
+        transaction: Transaction dict with 'description' and 'amount'
         account_bank: The bank type ('monzo' or 'yonder')
+        db: Database session to query exclusion rules
 
     Returns:
         True if transaction should be excluded
     """
-    description = transaction.description.lower() if hasattr(transaction, 'description') else transaction.get('description', '').lower()
-    amount = abs(transaction.amount if hasattr(transaction, 'amount') else transaction.get('amount', 0))
+    description = transaction.get('description', '').lower()
+    amount = abs(transaction.get('amount', 0))
 
-    for bank, pattern, match_amount in EXCLUSION_PATTERNS:
+    # Get all exclusion rules from database
+    rules = db.query(ExclusionRule).all()
+
+    for rule in rules:
         # Check bank match (None means any bank)
-        if bank is not None and account_bank != bank:
+        if rule.bank is not None and rule.bank.value != account_bank:
             continue
-        if pattern not in description:
+
+        # Check description pattern match
+        if rule.description_pattern.lower() not in description:
             continue
-        # If match_amount is None, match any amount
-        # Otherwise, match specific amount (with small tolerance for floats)
-        if match_amount is None or abs(amount - match_amount) < 0.01:
-            return True
+
+        # Check amount match (None means any amount)
+        if rule.amount is not None and abs(amount - rule.amount) >= 0.01:
+            continue
+
+        return True
 
     return False

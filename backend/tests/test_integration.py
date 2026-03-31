@@ -104,6 +104,15 @@ tx_001,15/03/2026,10:30:00,Card payment,Coffee Shop,,Eating out,-4.50,GBP"""
             "type": "current_account"
         })
 
+        # Create exclusion rules
+        client.post("/exclusions/", json={
+            "description_pattern": "yonder",
+            "bank": "monzo"
+        })
+        client.post("/exclusions/", json={
+            "description_pattern": "investengine"
+        })
+
         # Upload transactions including ones that should be excluded
         csv_content = """Transaction ID,Date,Time,Type,Name,Emoji,Category,Amount,Currency
 tx_001,15/03/2026,10:30:00,Card payment,Yonder,,Bills,-500.00,GBP
@@ -346,6 +355,12 @@ tx_001,15/03/2026,10:30:00,Card payment,Test,,Food,-100.00,GBP"""
             "name": "Monzo",
             "bank": "monzo",
             "type": "current_account"
+        })
+
+        # Create exclusion rule
+        client.post("/exclusions/", json={
+            "description_pattern": "yonder",
+            "bank": "monzo"
         })
 
         csv_content = """Transaction ID,Date,Time,Type,Name,Emoji,Category,Amount,Currency
