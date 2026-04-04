@@ -9,6 +9,7 @@ import {
   ReferenceLine,
   ResponsiveContainer
 } from 'recharts'
+import UploadForm from './components/UploadForm'
 import './App.css'
 
 // Backend API URL - change this if your backend is on a different port
@@ -161,6 +162,8 @@ function App() {
           <p className="status">No spending data available</p>
         )}
       </div>
+
+      <UploadForm onUploadSuccess={fetchSpendingData} />
 
       <footer>
         <p>Data from your budgeting app API</p>
