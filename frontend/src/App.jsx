@@ -6,29 +6,38 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ReferenceLine,
   ResponsiveContainer
 } from 'recharts'
 import UploadForm from './components/UploadForm'
+import MonthlyReport from './components/MonthlyReport'
+import Login from './components/Login'
+import { isAuthenticated, clearToken, authFetch } from './auth'
 import './App.css'
 
-// Backend API URL - change this if your backend is on a different port
-const API_URL = 'http://localhost:8000'
-
 function App() {
+  const [loggedIn, setLoggedIn] = useState(isAuthenticated())
   // State for storing spending data from API
   const [spendingData, setSpendingData] = useState([])
   // State for how many months to show (default: 6)
   const [monthsToShow, setMonthsToShow] = useState(6)
+  // State for chart stacking mode: 'total', 'account', 'category'
+  const [stackMode, setStackMode] = useState('total')
   // State for loading indicator
   const [loading, setLoading] = useState(true)
   // State for error messages
   const [error, setError] = useState(null)
+  // State for selected month from chart click
+  const [selectedMonth, setSelectedMonth] = useState(null)
+  const [selectedYear, setSelectedYear] = useState(null)
 
   // useEffect runs when component mounts or when monthsToShow changes
   useEffect(() => {
-    fetchSpendingData()
-  }, [monthsToShow])
+    if (loggedIn) {
+      fetchSpendingData()
+    }
+  }, [monthsToShow, loggedIn])
 
   // Function to fetch spending data from backend
   const fetchSpendingData = async () => {
@@ -36,8 +45,7 @@ function App() {
     setError(null)
 
     try {
-      // Call the /reports/trends endpoint with months parameter
-      const response = await fetch(`${API_URL}/reports/trends?months=${monthsToShow}`)
+      const response = await authFetch(`/reports/trends?months=${monthsToShow}`)
 
       if (!response.ok) {
         throw new Error('Failed to fetch spending data')
@@ -45,14 +53,21 @@ function App() {
 
       const data = await response.json()
 
-      // Transform data for the chart - add readable month labels
+      // Transform data for the chart - flatten nested objects into top-level keys
       const chartData = data.map(item => ({
         ...item,
         // Create label like "Mar 2026"
         label: new Date(item.year, item.month - 1).toLocaleDateString('en-GB', {
           month: 'short',
           year: 'numeric'
-        })
+        }),
+        // Flatten by_account and by_category into top-level keys
+        ...Object.fromEntries(
+          Object.entries(item.by_account || {}).map(([k, v]) => [`acct_${k}`, v])
+        ),
+        ...Object.fromEntries(
+          Object.entries(item.by_category || {}).map(([k, v]) => [`cat_${k}`, v])
+        ),
       }))
 
       setSpendingData(chartData)
@@ -63,6 +78,15 @@ function App() {
     }
   }
 
+  const handleLogout = () => {
+    clearToken()
+    setLoggedIn(false)
+  }
+
+  if (!loggedIn) {
+    return <Login onLogin={() => setLoggedIn(true)} />
+  }
+
   // Calculate average spending (only months with data)
   const averageSpending = (() => {
     const totalSpending = spendingData.reduce((sum, item) => sum + item.total_spent, 0)
@@ -70,13 +94,35 @@ function App() {
     return monthsWithData > 0 ? totalSpending / monthsWithData : 0
   })()
 
+  // Collect unique keys for stacked bars
+  const accountKeys = [...new Set(spendingData.flatMap(d =>
+    Object.keys(d).filter(k => k.startsWith('acct_'))
+  ))]
+  const categoryKeys = [...new Set(spendingData.flatMap(d =>
+    Object.keys(d).filter(k => k.startsWith('cat_'))
+  ))]
+
+  const COLORS = ['#4f46e5', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#14b8a6', '#e11d48', '#a855f7']
+
   // Custom tooltip component for hover information
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      const total = payload.reduce((sum, p) => sum + (p.value || 0), 0)
       return (
         <div className="custom-tooltip">
           <p className="tooltip-label">{label}</p>
-          <p className="tooltip-value">£{payload[0].value.toFixed(2)}</p>
+          {stackMode === 'total' ? (
+            <p className="tooltip-value">£{payload[0].value.toFixed(2)}</p>
+          ) : (
+            <>
+              {payload.map((p, i) => (
+                <p key={i} style={{ color: p.fill }}>
+                  {p.name}: £{p.value.toFixed(2)}
+                </p>
+              ))}
+              <p className="tooltip-value"><strong>Total: £{total.toFixed(2)}</strong></p>
+            </>
+          )}
           {averageSpending > 0 && (
             <p className="tooltip-average">Avg: £{averageSpending.toFixed(2)}</p>
           )}
@@ -90,6 +136,7 @@ function App() {
     <div className="app">
       <header>
         <h1>Monthly Spending</h1>
+        <button className="logout-button" onClick={handleLogout}>Sign Out</button>
       </header>
 
       <div className="controls">
@@ -102,6 +149,17 @@ function App() {
           <option value={3}>3 months</option>
           <option value={6}>6 months</option>
           <option value={12}>12 months</option>
+        </select>
+
+        <label htmlFor="stack-mode">Stack by: </label>
+        <select
+          id="stack-mode"
+          value={stackMode}
+          onChange={(e) => setStackMode(e.target.value)}
+        >
+          <option value="total">Total</option>
+          <option value="account">Account</option>
+          <option value="category">Category</option>
         </select>
       </div>
 
@@ -116,7 +174,18 @@ function App() {
 
         {!loading && !error && spendingData.length > 0 && (
           <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={spendingData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+            <BarChart
+              data={spendingData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              onClick={(e) => {
+                if (e && e.activePayload && e.activePayload.length) {
+                  const d = e.activePayload[0].payload
+                  setSelectedMonth(d.month)
+                  setSelectedYear(d.year)
+                }
+              }}
+              style={{ cursor: 'pointer' }}
+            >
               {/* Grid lines for readability */}
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
 
@@ -148,12 +217,31 @@ function App() {
                 />
               )}
 
+              {/* Legend for stacked modes */}
+              {stackMode !== 'total' && <Legend />}
+
               {/* The actual bars */}
-              <Bar
-                dataKey="total_spent"
-                fill="#4f46e5"
-                radius={[4, 4, 0, 0]}
-              />
+              {stackMode === 'total' && (
+                <Bar dataKey="total_spent" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+              )}
+              {stackMode === 'account' && accountKeys.map((key, i) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  name={key.replace('acct_', '')}
+                  stackId="account"
+                  fill={COLORS[i % COLORS.length]}
+                />
+              ))}
+              {stackMode === 'category' && categoryKeys.map((key, i) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  name={key.replace('cat_', '')}
+                  stackId="category"
+                  fill={COLORS[i % COLORS.length]}
+                />
+              ))}
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -162,6 +250,8 @@ function App() {
           <p className="status">No spending data available</p>
         )}
       </div>
+
+      <MonthlyReport selectedMonth={selectedMonth} selectedYear={selectedYear} />
 
       <UploadForm onUploadSuccess={fetchSpendingData} />
 

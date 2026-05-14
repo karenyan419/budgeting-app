@@ -2,10 +2,11 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from datetime import date
 
 from database import get_db
-from models import Transaction, Account, RecurringRule, BankType
+from models import Transaction, Account, RecurringRule, Category, BankType
 from schemas import TransactionUpdate, Transaction as TransactionSchema
 from services.monzo_parser import parse_monzo_csv
 from services.yonder_parser import parse_yonder_csv
@@ -13,6 +14,21 @@ from services.categorizer import apply_rules
 from services.exclusion_rules import should_exclude
 
 router = APIRouter()
+
+
+@router.get("/latest-dates")
+def get_latest_dates(db: Session = Depends(get_db)):
+    """Get the most recent transaction date per account."""
+    results = (
+        db.query(Account.id, Account.name, Account.bank, func.max(Transaction.date))
+        .outerjoin(Transaction)
+        .group_by(Account.id)
+        .all()
+    )
+    return {
+        row[1]: row[3].isoformat() if row[3] else None
+        for row in results
+    }
 
 
 @router.post("/upload/{account_id}")
@@ -36,7 +52,16 @@ async def upload_statement(
     else:
         raise HTTPException(status_code=400, detail="Unsupported bank type")
 
-    # Get all rules for auto-categorization
+    # Map source_category text to category_id where possible
+    categories = db.query(Category).all()
+    category_name_map = {cat.name.lower(): cat.id for cat in categories}
+    for tx_data in transactions:
+        if not tx_data.get("category_id") and tx_data.get("source_category"):
+            matched_id = category_name_map.get(tx_data["source_category"].lower())
+            if matched_id:
+                tx_data["category_id"] = matched_id
+
+    # Get all rules for auto-categorization (overrides source_category if matched)
     rules = db.query(RecurringRule).all()
     transactions = apply_rules(transactions, rules)
 

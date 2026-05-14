@@ -47,7 +47,7 @@ describe('App', () => {
   it('shows loading state initially', () => {
     mockFetch({ '/reports/trends': [], '/accounts/': mockAccounts })
     render(<App />)
-    expect(screen.getByText('Loading...')).toBeInTheDocument()
+    expect(screen.getAllByText('Loading...').length).toBeGreaterThan(0)
   })
 
   it('renders chart when data loads', async () => {

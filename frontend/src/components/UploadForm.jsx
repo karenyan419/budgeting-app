@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const API_URL = 'http://localhost:8000'
+import { authFetch, authHeaders } from '../auth'
 
 function UploadForm({ onUploadSuccess }) {
   const [accounts, setAccounts] = useState([])
@@ -9,15 +8,21 @@ function UploadForm({ onUploadSuccess }) {
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [latestDates, setLatestDates] = useState({})
 
   useEffect(() => {
-    fetch(`${API_URL}/accounts/`)
+    authFetch('/accounts/')
       .then(res => res.json())
       .then(data => {
         setAccounts(data)
         if (data.length > 0) setSelectedAccount(data[0].id)
       })
       .catch(() => setError('Failed to load accounts'))
+
+    authFetch('/transactions/latest-dates')
+      .then(res => res.json())
+      .then(data => setLatestDates(data))
+      .catch(() => {})
   }, [])
 
   const handleSubmit = async (e) => {
@@ -32,8 +37,8 @@ function UploadForm({ onUploadSuccess }) {
     formData.append('file', file)
 
     try {
-      const response = await fetch(
-        `${API_URL}/transactions/upload/${selectedAccount}`,
+      const response = await authFetch(
+        `/transactions/upload/${selectedAccount}`,
         { method: 'POST', body: formData }
       )
 
@@ -58,6 +63,16 @@ function UploadForm({ onUploadSuccess }) {
   return (
     <div className="upload-form">
       <h2>Upload Statement</h2>
+
+      {Object.keys(latestDates).length > 0 && (
+        <div className="latest-dates">
+          <p><strong>Most recent transactions:</strong></p>
+          {Object.entries(latestDates).map(([name, date]) => (
+            <p key={name}>{name}: {date || 'No transactions yet'}</p>
+          ))}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div className="form-row">
           <label htmlFor="account">Account</label>

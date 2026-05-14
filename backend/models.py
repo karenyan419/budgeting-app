@@ -71,6 +71,14 @@ class RecurringRule(Base):
     category = relationship("Category", back_populates="recurring_rules")
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+
+
 class ExclusionRule(Base):
     __tablename__ = "exclusion_rules"
 

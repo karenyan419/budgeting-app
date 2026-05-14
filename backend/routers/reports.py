@@ -4,7 +4,7 @@ from sqlalchemy import func
 from datetime import date
 
 from database import get_db
-from models import Transaction, Category
+from models import Transaction, Category, Account
 from schemas import MonthlyReport, CategorySpending
 
 router = APIRouter()
@@ -142,10 +142,57 @@ def spending_trends(
 
         total = abs(result) if result else 0
 
+        # Get spending by account
+        account_results = (
+            db.query(Account.name, func.sum(Transaction.amount))
+            .join(Transaction)
+            .filter(
+                Transaction.date >= start_date,
+                Transaction.date < end_date,
+                Transaction.amount < 0,
+                Transaction.excluded == False
+            )
+            .group_by(Account.name)
+            .all()
+        )
+        by_account = {name: round(abs(spent), 2) for name, spent in account_results}
+
+        # Get spending by category
+        category_results = (
+            db.query(Category.name, func.sum(Transaction.amount))
+            .join(Transaction, Transaction.category_id == Category.id)
+            .filter(
+                Transaction.date >= start_date,
+                Transaction.date < end_date,
+                Transaction.amount < 0,
+                Transaction.excluded == False
+            )
+            .group_by(Category.name)
+            .all()
+        )
+        by_category = {name: round(abs(spent), 2) for name, spent in category_results}
+
+        # Add uncategorized
+        uncategorized = (
+            db.query(func.sum(Transaction.amount))
+            .filter(
+                Transaction.date >= start_date,
+                Transaction.date < end_date,
+                Transaction.amount < 0,
+                Transaction.excluded == False,
+                Transaction.category_id == None
+            )
+            .scalar()
+        )
+        if uncategorized:
+            by_category["Uncategorized"] = round(abs(uncategorized), 2)
+
         trends.append({
             "month": month,
             "year": year,
             "total_spent": round(total, 2),
+            "by_account": by_account,
+            "by_category": by_category,
         })
 
     return trends

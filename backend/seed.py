@@ -32,9 +32,14 @@ try:
         Category(name="Bills", monthly_budget=500.00),
         Category(name="Health", monthly_budget=50.00),
         Category(name="Other", monthly_budget=100.00),
+        Category(name="Personal Care", monthly_budget=50.00),
+        Category(name="Holiday", monthly_budget=200.00),
+        Category(name="Charity", monthly_budget=25.00),
+        Category(name="Finances", monthly_budget=50.00),
+        Category(name="General", monthly_budget=100.00),
     ]
     db.add_all(categories)
-    print("✓ Created 8 categories with budgets")
+    print("✓ Created 13 categories with budgets")
 
     # Create common exclusion rules (internal transfers, not real spending)
     exclusions = [
