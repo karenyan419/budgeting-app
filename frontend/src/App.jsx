@@ -13,6 +13,7 @@ import {
 import UploadForm from './components/UploadForm'
 import MonthlyReport from './components/MonthlyReport'
 import ExclusionRules from './components/ExclusionRules'
+import Categorizer from './components/Categorizer'
 import Login from './components/Login'
 import { isAuthenticated, clearToken, authFetch } from './auth'
 import './App.css'
@@ -265,12 +266,15 @@ function App() {
       </div>
 
       <div className="tab-bar">
+        <button className={`tab ${activeTab === 'categorize' ? 'active' : ''}`} onClick={() => setActiveTab('categorize')}>Categorize</button>
         <button className={`tab ${activeTab === 'upload' ? 'active' : ''}`} onClick={() => setActiveTab('upload')}>Upload</button>
         <button className={`tab ${activeTab === 'exclusions' ? 'active' : ''}`} onClick={() => setActiveTab('exclusions')}>Exclusion Rules</button>
         <button className={`tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings</button>
       </div>
 
       <div className="tab-content">
+        {activeTab === 'categorize' && <Categorizer />}
+
         {activeTab === 'upload' && <UploadForm onUploadSuccess={fetchSpendingData} />}
 
         {activeTab === 'exclusions' && <ExclusionRules onRulesChanged={fetchSpendingData} />}
