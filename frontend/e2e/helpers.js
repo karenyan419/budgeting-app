@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:8000'
+const API_URL = 'http://localhost:8001'
 
 export const TEST_USER = { username: 'e2etest', password: 'e2epass123' }
 
