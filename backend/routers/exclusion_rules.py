@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
-from models import ExclusionRule
+from models import ExclusionRule, Transaction, Account
 from schemas import ExclusionRuleCreate, ExclusionRuleUpdate, ExclusionRule as ExclusionRuleSchema
+from services.exclusion_rules import should_exclude
 
 router = APIRouter()
 
@@ -65,3 +66,36 @@ def delete_exclusion_rule(rule_id: int, db: Session = Depends(get_db)):
     db.delete(db_rule)
     db.commit()
     return {"message": "Exclusion rule deleted"}
+
+
+@router.post("/apply-all")
+def apply_all_exclusion_rules(db: Session = Depends(get_db)):
+    """Re-apply all exclusion rules to every transaction. Resets excluded flag first."""
+    transactions = db.query(Transaction).all()
+    accounts = {a.id: a for a in db.query(Account).all()}
+
+    excluded_count = 0
+    for tx in transactions:
+        account = accounts.get(tx.account_id)
+        bank = account.bank.value if account else ""
+        tx_data = {"description": tx.description, "amount": tx.amount}
+        tx.excluded = should_exclude(tx_data, bank, db)
+        if tx.excluded:
+            excluded_count += 1
+
+    db.commit()
+    return {
+        "message": f"Applied rules to {len(transactions)} transactions",
+        "total": len(transactions),
+        "excluded": excluded_count,
+    }
+
+
+@router.post("/reset")
+def reset_exclusions(db: Session = Depends(get_db)):
+    """Clear all excluded flags on every transaction."""
+    count = db.query(Transaction).filter(Transaction.excluded == True).update(
+        {Transaction.excluded: False}, synchronize_session="fetch"
+    )
+    db.commit()
+    return {"message": f"Reset {count} transactions to not excluded", "reset": count}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   BarChart,
   Bar,
@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import UploadForm from './components/UploadForm'
 import MonthlyReport from './components/MonthlyReport'
+import ExclusionRules from './components/ExclusionRules'
 import Login from './components/Login'
 import { isAuthenticated, clearToken, authFetch } from './auth'
 import './App.css'
@@ -31,6 +32,10 @@ function App() {
   // State for selected month from chart click
   const [selectedMonth, setSelectedMonth] = useState(null)
   const [selectedYear, setSelectedYear] = useState(null)
+  const [selectionKey, setSelectionKey] = useState(0)
+  const reportRef = useRef(null)
+  // State for clear database
+  const [clearing, setClearing] = useState(false)
 
   // useEffect runs when component mounts or when monthsToShow changes
   useEffect(() => {
@@ -182,6 +187,10 @@ function App() {
                   const d = e.activePayload[0].payload
                   setSelectedMonth(d.month)
                   setSelectedYear(d.year)
+                  setSelectionKey(k => k + 1)
+                  setTimeout(() => {
+                    reportRef.current?.scrollIntoView({ behavior: 'smooth' })
+                  }, 100)
                 }
               }}
               style={{ cursor: 'pointer' }}
@@ -251,9 +260,39 @@ function App() {
         )}
       </div>
 
-      <MonthlyReport selectedMonth={selectedMonth} selectedYear={selectedYear} />
+      <div ref={reportRef}>
+        <MonthlyReport selectedMonth={selectedMonth} selectedYear={selectedYear} selectionKey={selectionKey} />
+      </div>
 
       <UploadForm onUploadSuccess={fetchSpendingData} />
+
+      <ExclusionRules onRulesChanged={fetchSpendingData} />
+
+      <div className="danger-zone">
+        <h2>Danger Zone</h2>
+        <p>This will permanently delete all transactions, categories, accounts, and rules.</p>
+        <button
+          className="danger-button"
+          disabled={clearing}
+          onClick={async () => {
+            if (!window.confirm('Are you sure? This will delete ALL data.')) return
+            setClearing(true)
+            try {
+              const res = await authFetch('/admin/clear-database', { method: 'POST' })
+              if (!res.ok) throw new Error('Failed to clear')
+              const data = await res.json()
+              alert(`Database cleared. Deleted: ${data.deleted.transactions} transactions, ${data.deleted.categories} categories, ${data.deleted.accounts} accounts.`)
+              fetchSpendingData()
+            } catch (err) {
+              alert('Error clearing database: ' + err.message)
+            } finally {
+              setClearing(false)
+            }
+          }}
+        >
+          {clearing ? 'Clearing...' : 'Clear Database'}
+        </button>
+      </div>
 
       <footer>
         <p>Data from your budgeting app API</p>

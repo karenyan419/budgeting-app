@@ -106,12 +106,13 @@ async def upload_statement(
     }
 
 
-@router.get("/", response_model=List[TransactionSchema])
+@router.get("/")
 def list_transactions(
     month: Optional[int] = Query(None, ge=1, le=12),
     year: Optional[int] = Query(None, ge=2000),
     account_id: Optional[int] = None,
     category_id: Optional[int] = None,
+    excluded: Optional[bool] = Query(None),
     db: Session = Depends(get_db)
 ):
     """List transactions with optional filters."""
@@ -131,7 +132,20 @@ def list_transactions(
     if category_id:
         query = query.filter(Transaction.category_id == category_id)
 
-    return query.order_by(Transaction.date.desc()).all()
+    if excluded is not None:
+        query = query.filter(Transaction.excluded == excluded)
+
+    rows = query.order_by(Transaction.date.desc()).all()
+
+    # Attach category_name and account_name for convenience
+    results = []
+    for tx in rows:
+        data = TransactionSchema.model_validate(tx).model_dump()
+        data["category_name"] = tx.category.name if tx.category else None
+        data["account_name"] = tx.account.name if tx.account else None
+        results.append(data)
+
+    return results
 
 
 @router.get("/{transaction_id}", response_model=TransactionSchema)

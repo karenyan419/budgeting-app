@@ -18,7 +18,7 @@ def monthly_report(
 ):
     """
     Get monthly spending report.
-    Returns total spent, spending by category with budget comparison,
+    Returns total spent (net of refunds), spending by category with budget comparison,
     and alerts for categories over budget.
 
     Note: Transactions with excluded=True are not included.
@@ -33,7 +33,7 @@ def monthly_report(
     # Get all categories
     categories = db.query(Category).all()
 
-    # Get spending by category (only expenses, not excluded)
+    # Get net spending by category (expenses + refunds, not excluded)
     spending_query = (
         db.query(
             Transaction.category_id,
@@ -42,15 +42,17 @@ def monthly_report(
         .filter(
             Transaction.date >= start_date,
             Transaction.date < end_date,
-            Transaction.amount < 0,
             Transaction.excluded == False
         )
         .group_by(Transaction.category_id)
         .all()
     )
 
-    # Build spending map
-    spending_map = {row.category_id: abs(row.total) for row in spending_query}
+    # Build spending map (abs of net negative amounts; if net positive, treat as 0 spent)
+    spending_map = {}
+    for row in spending_query:
+        net = row.total
+        spending_map[row.category_id] = abs(net) if net < 0 else 0
 
     # Get uncategorized spending
     uncategorized_spent = spending_map.get(None, 0)
@@ -128,49 +130,46 @@ def spending_trends(
         else:
             end_date = date(year, month + 1, 1)
 
-        # Get total spending for month (not excluded)
+        # Get net spending for month (not excluded)
         result = (
             db.query(func.sum(Transaction.amount))
             .filter(
                 Transaction.date >= start_date,
                 Transaction.date < end_date,
-                Transaction.amount < 0,
                 Transaction.excluded == False
             )
             .scalar()
         )
 
-        total = abs(result) if result else 0
+        total = abs(result) if result and result < 0 else 0
 
-        # Get spending by account
+        # Get net spending by account
         account_results = (
             db.query(Account.name, func.sum(Transaction.amount))
             .join(Transaction)
             .filter(
                 Transaction.date >= start_date,
                 Transaction.date < end_date,
-                Transaction.amount < 0,
                 Transaction.excluded == False
             )
             .group_by(Account.name)
             .all()
         )
-        by_account = {name: round(abs(spent), 2) for name, spent in account_results}
+        by_account = {name: round(abs(spent), 2) for name, spent in account_results if spent < 0}
 
-        # Get spending by category
+        # Get net spending by category
         category_results = (
             db.query(Category.name, func.sum(Transaction.amount))
             .join(Transaction, Transaction.category_id == Category.id)
             .filter(
                 Transaction.date >= start_date,
                 Transaction.date < end_date,
-                Transaction.amount < 0,
                 Transaction.excluded == False
             )
             .group_by(Category.name)
             .all()
         )
-        by_category = {name: round(abs(spent), 2) for name, spent in category_results}
+        by_category = {name: round(abs(spent), 2) for name, spent in category_results if spent < 0}
 
         # Add uncategorized
         uncategorized = (
@@ -178,13 +177,12 @@ def spending_trends(
             .filter(
                 Transaction.date >= start_date,
                 Transaction.date < end_date,
-                Transaction.amount < 0,
                 Transaction.excluded == False,
                 Transaction.category_id == None
             )
             .scalar()
         )
-        if uncategorized:
+        if uncategorized and uncategorized < 0:
             by_category["Uncategorized"] = round(abs(uncategorized), 2)
 
         trends.append({
