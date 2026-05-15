@@ -34,8 +34,8 @@ function App() {
   const [selectedYear, setSelectedYear] = useState(null)
   const [selectionKey, setSelectionKey] = useState(0)
   const reportRef = useRef(null)
-  // State for clear database
   const [clearing, setClearing] = useState(false)
+  const [activeTab, setActiveTab] = useState('upload')
 
   // useEffect runs when component mounts or when monthsToShow changes
   useEffect(() => {
@@ -264,34 +264,44 @@ function App() {
         <MonthlyReport selectedMonth={selectedMonth} selectedYear={selectedYear} selectionKey={selectionKey} />
       </div>
 
-      <UploadForm onUploadSuccess={fetchSpendingData} />
+      <div className="tab-bar">
+        <button className={`tab ${activeTab === 'upload' ? 'active' : ''}`} onClick={() => setActiveTab('upload')}>Upload</button>
+        <button className={`tab ${activeTab === 'exclusions' ? 'active' : ''}`} onClick={() => setActiveTab('exclusions')}>Exclusion Rules</button>
+        <button className={`tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings</button>
+      </div>
 
-      <ExclusionRules onRulesChanged={fetchSpendingData} />
+      <div className="tab-content">
+        {activeTab === 'upload' && <UploadForm onUploadSuccess={fetchSpendingData} />}
 
-      <div className="danger-zone">
-        <h2>Danger Zone</h2>
-        <p>This will permanently delete all transactions, categories, accounts, and rules.</p>
-        <button
-          className="danger-button"
-          disabled={clearing}
-          onClick={async () => {
-            if (!window.confirm('Are you sure? This will delete ALL data.')) return
-            setClearing(true)
-            try {
-              const res = await authFetch('/admin/clear-database', { method: 'POST' })
-              if (!res.ok) throw new Error('Failed to clear')
-              const data = await res.json()
-              alert(`Database cleared. Deleted: ${data.deleted.transactions} transactions, ${data.deleted.categories} categories, ${data.deleted.accounts} accounts.`)
-              fetchSpendingData()
-            } catch (err) {
-              alert('Error clearing database: ' + err.message)
-            } finally {
-              setClearing(false)
-            }
-          }}
-        >
-          {clearing ? 'Clearing...' : 'Clear Database'}
-        </button>
+        {activeTab === 'exclusions' && <ExclusionRules onRulesChanged={fetchSpendingData} />}
+
+        {activeTab === 'settings' && (
+          <div className="danger-zone">
+            <h2>Danger Zone</h2>
+            <p>This will permanently delete all transactions, categories, accounts, and rules.</p>
+            <button
+              className="danger-button"
+              disabled={clearing}
+              onClick={async () => {
+                if (!window.confirm('Are you sure? This will delete ALL data.')) return
+                setClearing(true)
+                try {
+                  const res = await authFetch('/admin/clear-database', { method: 'POST' })
+                  if (!res.ok) throw new Error('Failed to clear')
+                  const data = await res.json()
+                  alert(`Database cleared. Deleted: ${data.deleted.transactions} transactions, ${data.deleted.categories} categories, ${data.deleted.accounts} accounts.`)
+                  fetchSpendingData()
+                } catch (err) {
+                  alert('Error clearing database: ' + err.message)
+                } finally {
+                  setClearing(false)
+                }
+              }}
+            >
+              {clearing ? 'Clearing...' : 'Clear Database'}
+            </button>
+          </div>
+        )}
       </div>
 
       <footer>

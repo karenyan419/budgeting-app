@@ -263,6 +263,48 @@ footer p {
   font-weight: 600;
 }
 
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  margin-top: 30px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.tab {
+  padding: 10px 24px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+  color: #1f2937;
+}
+
+.tab.active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+}
+
+.tab-content {
+  margin-top: 0;
+}
+
+.tab-content .upload-form,
+.tab-content .exclusion-rules,
+.tab-content .danger-zone {
+  margin-top: 0;
+  border-radius: 0 0 12px 12px;
+  border-top: none;
+}
+
 /* Transaction toggle button */
 .toggle-transactions {
   margin-top: 20px;
